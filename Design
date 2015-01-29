@@ -1,0 +1,32 @@
+structures:
+// card card_deck[81]
+// card is a struct/class with 4 integers
+// each signifying one of the card aspects
+// this deck is predefined, these are basically
+// the base cards to be referenced
+card_deck [81]{int, int, int, int} 
+// is basically to signify the card in card_deck
+// if the deck is of type int 
+//   the number signifies the card in card_deck
+// if the deck is of type ptr to card
+//   the card_deck array is made unecessary
+//   can make the cards and point to them
+shuffled_deck[81]{int|ptr}
+// used to let the system know what cards 
+// to display and where they are
+// can either be the pointer to the cards 
+// or the number to card_deck
+board[int|ptr][3][4]
+// structure of players...<more needed>
+players
+// connections to the clients to listen on
+conections
+// 
+streak
+// 3 cards 
+cards_selected
+
+network:
+// listen on server socket waiting for connections
+// when someone connects create a new player object
+// then thread for the process

@@ -1,0 +1,259 @@
+CSC 460 - Team Project - Spring 2014
+Time-stamp: <2014-03-19 09:49:03 shade>
+
+OVERVIEW
+
+A Set card has 1-3 copies of one of three shapes in one of three colors
+in one of three shadings. The Set deck contains all 3^4 = 81 possible
+cards. Three cards make a set if all three cards
+
+    have the same shape or three different shapes, AND
+    have the same color or three different colors, AND
+    have the same shading or three different shadings, AND
+    have the same number of shapes or three different numbers.
+
+Equivalently, it's NOT a set if exactly two cards agree on any attribute
+(number, shape, color, or shading).
+
+This computer version is a networked real-time game with 1-12 players.
+The server randomly selects 12 cards, which are displayed on all
+players' screens simultaneously. Each card has an associated letter (see
+below). Players can select/deselect cards by pressing the card's letter.
+When a player has selected exactly three cards, she may press the space
+bar to send that possible set to the server. If it's correct, she earns
+points and those cards are removed from the board, replaced by three new
+ones. If she's incorrect, she loses points. If there is no set on the
+board, the first player to press the no-set key earns points, and the
+server replaces 6 cards, chosen randomly. When there are fewer than 12
+cards in the deck, the server displays all the cards.
+
+Only one player can score for a given set. The server records the cards
+as gone instantly, even though the animation to replace a card may not
+have started. This will seem unfair at times, but that's part of the
+"fun" of a real-time card game.
+
+NOTE: this race condition is possible: (1) player Jay scores for set
+abc; (2) the server removes abc, draws three cards to replace them, and
+sends clients the replace-card messages; (3) the server gets abc from
+player Kay based on the OLD cards (because the animation hasn't
+started); (4) the replacement cards also happen to be a set, so Kay
+scores for the new set; (5) the server draws three new cards again.
+Other similar situations can arise.
+
+Suppose that the client gets a message to replace the card at position d
+with card number 54. Then, while the shrink/grow animation is running,
+it gets a message to replace card d with card number 16. The client must
+just display the new card after the animation completes; card number 54
+will never be visible to the user.
+
+There must be a clear visual indication that a card as been selected
+that is at the card position. (It could be a border around the card, a
+different background color, a caption above or below the card, etc.)
+Players may not select cards during the shrink/grow animation.
+
+The player with the most points at the end of the game is the winner.
+The scores for each player are displayed on-screen and updated in real
+time. At the end of the game, a numbered player ranking, sorted first by
+score and then by player name, is left on the screen.
+
+Players may press '6' (for "deep six") to quit the game (there must be a
+confirmation message and keypress). Or they can just watch the game
+without playing, but of course they won't score any points.
+
+SCORING
+
+Correct set:         5
+Incorrect set:      -3
+Correct "no set":   10
+Incorrect "no set": -5
+Streak bonus:       +(2 3 5 8 13 21 ...)
+
+Streaks are global. The first time player xyz has a correct answer, she
+scores as usual. If she is also the next person to score (no other
+player scores first), she gets a +2 bonus; if she's the next after that,
+she gets a +3 bonus, and so on. An incorrect answer by a player, or a
+correct answer by a different player, breaks that player's streak.
+
+Ties are not broken. In the final ranking, players with the same score
+are given the same position number. The final ranking should look
+something like this (and it must be displayed after you shut down
+curses, so that it stays on the screen):
+
+    1. emily        104
+    1. alan         104
+    3. john          95
+    4. jlo           50
+    4. ziggy         50
+    4. applepie      50
+    7. watusi        42
+    8. poindexter   -19
+
+STARTING THE SERVER
+
+    ./game port [start_delay]
+
+If start_delay is not specified (in seconds), it defaults to 15 seconds.
+The server must always accept new client connections while it is
+running. If the start_delay has expired, or the maximum number of
+players has joined, the server must send an appropriate response. The
+server must also resolve name collisions. If a player attempts to join
+using the same name as an existing player, the server must append a
+digit to make the name distinct. The server must send the player's name
+back to the client upon successfully joining a game, since it may be
+different than what the player requested.
+
+STARTING A CLIENT
+
+    ./play port [name]
+
+The name, if omitted, is the user's login name. If the client is unable
+to connect to the server or is unable to join the game (because the game
+has started or because the game is full), the client must write a suitable
+message and exit. Otherwise, the client must display the player's name
+(which may be different from what he selected if there are conflicts),
+and display a countdown timer until the game starts.
+
+KEYSTROKES
+
+The following are mandatory: '6' to deep-six (quit) the game, and space
+to enter a set (only if exactly three cards are selected).
+
+The keystrokes to select a card must be sensible. There are three
+obvious choices, shown below: alphabetic, left-handed, and right-handed.
+The row in parentheses is for a 4x4 grid (not currently used, but may
+become necessary after playtesting). The letter by itself is the
+"no-set" key, which may be pressed at any time, regardless of whether
+any cards are selected; any selected cards are deselected.
+
+ a b c d        (1 2 3 4)       (7 8 9 0)
+ e f g h         q w e r         u i o p
+ i j k l         a s d f         j k l ;
+(m n o p)        z x c v         m , . /
+    x               n               n
+
+Each card must be identified by its letter. A legend for the other three
+keys must be visible on screen at all times.
+
+GENERAL REQUIREMENTS
+
+* The server must be multithreaded, with one thread per client plus any
+  other needed threads.
+* Clients and servers may not busy-wait under any circumstances. This
+  includes sleeping for no reason other than to avoid a race condition.
+* The client should essentially just be an input and display engine. It
+  must send "commands" to the server (a potential set, a no-set
+  indication, quit, etc.), and update the screen based on updates from
+  the server. Some visual effects, like cards shrinking then growing as
+  they are replaced, can be implemented solely in the client if you
+  want.
+* Network traffic must be minimalist; for example, it is not acceptable
+  for the server to send an entire screen image to every client several
+  times a second. The server should only send enough information for the
+  client to update the screen. However, you don't have to use
+  bit-twiddling hacks to send the absolute minimum amount of
+  information.
+
+THE SCREEN
+
+You can assume an 80x25 screen.
+
+All the cards, their letter, their status (selected or not), and the
+names and scores of all players must be visible and updated in real
+time. The screen background and the card background must be different
+colors. Choose colors to provide good contrast without being gaudy.
+
+CARDS
+
+Should internally be identified by a number, 0-80. Players never see
+these numbers. The client is responsible for drawing a card.
+
+Number: 1 2 3
+Color: red blue yellow
+    use dark gray or black as the screen background color
+    use light gray or white as the card background color
+    ensure good contrast between card foreground and background
+
+Shading:
+    o (background color is card color; foreground is true color)
+    @ (background color is card color; foreground is true color)
+    █ (space drawn with foreground color equal to true color)
+
+Shapes:
+     █  ███   █    o  ooo   o    @  @@@   @
+    ███ █ █  █    ooo o o  o    @@@ @ @  @
+     █  ███ █      o  ooo o      @  @@@ @
+
+a░░░░░░░░░░░░░░  b░░░░░░░░░░░░░░  c░░░░░░░░░░░░░░
+░░░░░░░█░░░░░░░  ░░░░░█░░░█░░░░░  ░░░█░░░█░░░█░░░
+░░░░░░███░░░░░░  ░░░░███░███░░░░  ░░███░███░███░░
+░░░░░░░█░░░░░░░  ░░░░░█░░░█░░░░░  ░░░█░░░█░░░█░░░
+░░░░░░░░░░░░░░░  ░░░░░░░░░░░░░░░  ░░░░░░░░░░░░░░░
+
+SHRINK/GROW ANIMATION
+
+When the client receives a notification from the server to replace the
+card at position k with a new card, it must immediately blank the card.
+This is frame 0 of the animation.
+
+k░░░░░░░░░░░░░░
+░░░░░░░░░░░░░░░
+░░░░░░░░░░░░░░░
+░░░░░░░░░░░░░░░
+░░░░░░░░░░░░░░░
+
+Then it must animate a shrink/grow using only a blank card, using the
+following 14-frame animation that shrinks the blank card down to a
+single vertical line then grows it back to full size again. Wait 0.05
+seconds before each new frame, so that the total animation takes 0.7
+seconds. Then instantly replace the blank card with the correct card
+image. Note that there will usually be three animations going
+simultaneously, and there may be more. You use timers or extra threads
+to handle this.
+
+k░░░░░░░░░░░░░░     frame 0, 14
+░░░░░░░░░░░░░░░
+░░░░░░░░░░░░░░░
+░░░░░░░░░░░░░░░
+░░░░░░░░░░░░░░░
+
+ ░░░░░░░░░░░░░      frame 1, 13
+ ░░░░░░░░░░░░░
+ ░░░░░░░░░░░░░
+ ░░░░░░░░░░░░░
+ ░░░░░░░░░░░░░
+
+  ░░░░░░░░░░░       frame 2, 12
+  ░░░░░░░░░░░
+  ░░░░░░░░░░░
+  ░░░░░░░░░░░
+  ░░░░░░░░░░░
+
+   ░░░░░░░░░        frame 3, 11
+   ░░░░░░░░░
+   ░░░░░░░░░
+   ░░░░░░░░░
+   ░░░░░░░░░
+
+    ░░░░░░░         frame 4, 10
+    ░░░░░░░
+    ░░░░░░░
+    ░░░░░░░
+    ░░░░░░░
+
+     ░░░░░          frame 5, 9
+     ░░░░░
+     ░░░░░
+     ░░░░░
+     ░░░░░
+
+      ░░░           frame 6, 8
+      ░░░
+      ░░░
+      ░░░
+      ░░░
+
+       ░            frame 7
+       ░
+       ░
+       ░
+       ░
